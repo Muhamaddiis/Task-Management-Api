@@ -28,6 +28,9 @@ func main() {
 
 	api.HandleFunc("/tasks", handlers.CreateTask).Methods("POST")
 	api.HandleFunc("/tasks", handlers.GetAllTasks).Methods("GET")
+	api.HandleFunc("/tasks/{id}", handlers.GetTask).Methods("GET")
+	api.HandleFunc("/tasks/{id}", handlers.DeleteTask).Methods("DELETE")
+	api.HandleFunc("/tasks/{id}", handlers.UpdateTask).Methods("PUT")
 
 	//start server
 	port := os.Getenv("PORT")

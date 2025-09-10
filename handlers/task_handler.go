@@ -8,6 +8,8 @@ import (
 
 	"github.com/Muhamaddiis/Task-Management-Api/database"
 	"github.com/Muhamaddiis/Task-Management-Api/models"
+	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
 func CreateTask(w http.ResponseWriter, r *http.Request) {
@@ -139,4 +141,130 @@ func GetAllTasks(w http.ResponseWriter, r *http.Request) {
 		"tasks":      response,
 		"pagination": pagination,
 	})
+}
+
+func GetTask(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid task ID", http.StatusBadRequest)
+		return
+	}
+
+	var task models.Task
+	if err := database.DB.First(&task, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			http.Error(w, "Task not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to fetch task", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	response := models.TaskResponse{
+		ID:          task.ID,
+		Title:       task.Title,
+		Description: task.Description,
+		Status:      task.Status,
+		DueDate:     task.DueDate,
+		CreatedAt:   task.CreatedAt,
+		UpdatedAt:   task.UpdatedAt,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func DeleteTask(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid task ID", http.StatusBadRequest)
+		return
+	}
+
+	var task models.Task
+	if err := database.DB.First(&task, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			http.Error(w, "Task not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to fetch task", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	if err := database.DB.Delete(&task).Error; err != nil {
+		http.Error(w, "Failed to delete task", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func UpdateTask(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid task ID", http.StatusBadRequest)
+		return
+	}
+
+	var taskReq models.TaskRequest
+	if err := json.NewDecoder(r.Body).Decode(&taskReq); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// Validate due date is in the future if provided
+	if !taskReq.DueDate.IsZero() && taskReq.DueDate.Before(time.Now()) {
+		http.Error(w, "Due date must be in the future", http.StatusBadRequest)
+		return
+	}
+
+	var task models.Task
+	if err := database.DB.First(&task, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			http.Error(w, "Task not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to fetch task", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Check if title already exists (excluding current task)
+	if taskReq.Title != "" && taskReq.Title != task.Title {
+		var existingTask models.Task
+		if err := database.DB.Where("title = ? AND id != ?", taskReq.Title, id).First(&existingTask).Error; err == nil {
+			http.Error(w, "Task with this title already exists", http.StatusConflict)
+			return
+		}
+		task.Title = taskReq.Title
+	}
+
+	if taskReq.Description != "" {
+		task.Description = taskReq.Description
+	}
+	if taskReq.Status != "" {
+		task.Status = taskReq.Status
+	}
+	if !taskReq.DueDate.IsZero() {
+		task.DueDate = taskReq.DueDate
+	}
+	task.UpdatedAt = time.Now()
+
+	if err := database.DB.Save(&task).Error; err != nil {
+		http.Error(w, "Failed to update task", http.StatusInternalServerError)
+		return
+	}
+
+	response := models.TaskResponse{
+		ID:          task.ID,
+		Title:       task.Title,
+		Description: task.Description,
+		Status:      task.Status,
+		DueDate:     task.DueDate,
+		CreatedAt:   task.CreatedAt,
+		UpdatedAt:   task.UpdatedAt,
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
