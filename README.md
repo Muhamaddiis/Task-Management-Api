@@ -37,10 +37,82 @@ A simple RESTful API for managing tasks built with Golang, Gorilla Mux, and GORM
     # or via psql:
     # psql -U postgres -c "CREATE DATABASE taskdb;"
 5. Migration
-    # The application will automatically run migrations on startup
+     The application will automatically run migrations on startup
 6. Start the server
     ```bash
     go run main.go
+
+## API Endpoints
+### Create a Task
+* POST /api/v1/tasks
+
+* Body:
+    ```json
+    {
+        "title": "Task title",
+        "description": "Task description",
+        "status": "pending",
+        "due_date": "2023-12-31T23:59:59Z"
+    }
+### Get All Tasks
+* GET /api/v1/tasks
+
+* Query parameters
+    * status - Filter by status (pending, in_progress, completed)
+
+    * due_date - Filter by due date (YYYY-MM-DD format)
+
+    * search - Search by title
+
+    * page - Page number (default: 1)
+
+    * limit - Items per page (default: 10, max: 100)
+
+### Get a specific Task
+* GET /api/v1/tasks/{id}
+
+### Update a Task
+* PUT /api/v1/tasks/{id}
+
+* Body same as createTask
+
+### Delete a Task
+* DELETE /api/v1/tasks/{id}
+
+### Validation rules
+* Title is required and must be unique
+
+* Status must be one of: pending, in_progress, completed
+
+* Due date must be in the future
+
+### Example Usage
+1. Create a Task:
+
+    ```bash
+        curl -X POST http://localhost:8080/api/v1/tasks \
+        -H "Content-Type: application/json" \
+        -d '{
+                "title": "Complete API project",
+                "description": "Finish the task management API",
+                "status": "pending",
+                "due_date": "2023-12-31T23:59:59Z"
+            }' 
+2. Get all tasks with pagination
+    ```bash
+    curl "http://localhost:8080/api/v1/tasks?page=1&limit=10"
+
+3. Filter task by status
+    ```bash
+    curl "http://localhost:8080/api/v1/tasks?status=pending"
+    
+4. Search task by Title
+    ```bash
+    curl "http://localhost:8080/api/v1/tasks?search=complete"
+
+
+
+
 
 
 This implementation provides a complete Task Management System API with all the requested features:
